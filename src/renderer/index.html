@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none';" />
+  <title>AgentOps Desktop</title>
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="AgentOps Desktop" />
+  <meta property="og:description" content="Manage AI agents, goals, and tasks with AgentOps Desktop." />
+  <meta property="og:image" content="og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:url" content="https://agentops.dev" />
+  <meta property="og:site_name" content="AgentOps" />
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="AgentOps Desktop" />
+  <meta name="twitter:description" content="Manage AI agents, goals, and tasks with AgentOps Desktop." />
+  <meta name="twitter:image" content="og-image.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="header-brand">AgentOps</div>
+      <nav class="header-nav">
+        <label for="global-search" class="visually-hidden">Search agents, goals, and tasks</label>
+        <input type="search" id="global-search" class="header-search" placeholder="Search…" autocomplete="off" title="Search (⌘K)" />
+      </nav>
+    </header>
+    <div class="app-body">
+      <aside class="app-sidebar">
+        <nav class="sidebar-nav">
+          <a class="sidebar-link active" data-route="dashboard">Dashboard</a>
+          <a class="sidebar-link" data-route="agents">Agents</a>
+          <a class="sidebar-link" data-route="goals">Goals</a>
+          <a class="sidebar-link" data-route="tasks">Tasks</a>
+        </nav>
+        <div class="sidebar-actions">
+          <button type="button" class="sidebar-action-btn" id="btn-add-agent" aria-haspopup="dialog" title="Add Agent">+ Add Agent</button>
+          <button type="button" class="sidebar-action-btn" id="btn-new-task" aria-haspopup="dialog" title="New Task (⌘T)">+ New Task</button>
+        </div>
+      </aside>
+      <main id="main-content" class="app-content">
+        <!-- Login View -->
+        <div id="view-login" class="content-placeholder" hidden>
+          <h1>Sign In</h1>
+          <p>Enter your credentials to access AgentOps.</p>
+          <form id="login-form" class="settings-form" style="margin-top: 20px; max-width: 360px;">
+            <div class="form-field">
+              <label for="login-secret">Secret</label>
+              <input type="password" id="login-secret" name="secret" required autocomplete="off" />
+            </div>
+            <p id="login-error" style="color: #ef4444; font-size: 13px; margin-bottom: 12px;" aria-live="polite"></p>
+            <div class="form-actions">
+              <button type="submit">Sign In</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Dashboard View — Real-time Agent Status -->
+        <section id="view-dashboard" class="dashboard" aria-label="Agent status dashboard">
+          <div class="dashboard-header">
+            <h1>Dashboard</h1>
+            <div class="dashboard-header-actions">
+              <span class="dashboard-last-refresh" id="dashboard-last-refresh" aria-live="polite"></span>
+              <button type="button" class="sidebar-action-btn" id="btn-logout">Sign Out</button>
+            </div>
+          </div>
+
+          <div id="dashboard-loading" class="agent-list-loading" hidden>
+            <span class="spinner" aria-hidden="true"></span> Loading agents…
+          </div>
+
+          <div id="dashboard-empty" class="dashboard-empty" hidden>
+            <div class="dashboard-empty-icon" aria-hidden="true">⚡</div>
+            <h2>No agents configured</h2>
+            <p>Add an agent to start monitoring its status in real-time.</p>
+            <button type="button" class="sidebar-action-btn" id="btn-dashboard-add-agent">+ Add Agent</button>
+          </div>
+
+          <div id="dashboard-grid" class="dashboard-grid" role="list" aria-label="Agent status grid"></div>
+        </section>
+
+        <!-- 404 View -->
+        <div id="view-not-found" class="view-not-found" hidden role="alert" aria-labelledby="not-found-title">
+          <div class="not-found-icon" aria-hidden="true">404</div>
+          <h1 id="not-found-title" class="not-found-title">Page Not Found</h1>
+          <p class="not-found-description">The page you're looking for doesn't exist or hasn't been built yet.</p>
+          <div class="not-found-actions">
+            <button type="button" class="not-found-btn not-found-btn--primary" id="btn-go-dashboard">Back to Dashboard</button>
+            <button type="button" class="not-found-btn not-found-btn--secondary" id="btn-go-tasks">View Tasks</button>
+          </div>
+        </div>
+
+        <!-- Agent List View -->
+        <section id="view-agents" class="agent-list" hidden aria-label="Agent registry">
+          <div class="agent-list-header">
+            <h1>Agents</h1>
+            <button type="button" class="sidebar-action-btn" id="btn-add-agent-inline">+ Add Agent</button>
+          </div>
+          <div id="agent-list-error" class="agent-list-error" hidden aria-live="polite"></div>
+          <div id="agent-list-loading" class="agent-list-loading" hidden>
+            <span class="spinner" aria-hidden="true"></span> Loading agents…
+          </div>
+          <div id="agent-list-empty" class="agent-list-empty" hidden>
+            <p>No agents configured yet. Click "+ Add Agent" to create one.</p>
+          </div>
+          <div id="agent-list-cards" class="agent-list-cards" role="list" aria-label="Agent list"></div>
+        </section>
+
+        <!-- Modal: Edit Agent -->
+        <dialog id="modal-edit-agent" class="modal" aria-labelledby="modal-edit-agent-title">
+          <form method="dialog" class="modal-form">
+            <h2 id="modal-edit-agent-title">Edit Agent</h2>
+            <input type="hidden" id="edit-agent-id" />
+            <div class="form-field">
+              <label for="edit-agent-name">Agent Name</label>
+              <input type="text" id="edit-agent-name" name="name" required />
+            </div>
+            <div class="form-field">
+              <label for="edit-agent-type">Agent Type</label>
+              <select id="edit-agent-type" name="agent_type">
+                <option value="claude-code">Claude Code</option>
+                <option value="codex">Codex</option>
+                <option value="gemini-cli">Gemini CLI</option>
+                <option value="opencode">OpenCode</option>
+                <option value="custom" selected>Custom</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label for="edit-agent-executable">Executable Path</label>
+              <input type="text" id="edit-agent-executable" name="executable_path" placeholder="/usr/bin/agent" />
+            </div>
+            <div class="form-field">
+              <label for="edit-agent-cwd">Working Directory</label>
+              <input type="text" id="edit-agent-cwd" name="working_directory" placeholder="/home/user/project" />
+            </div>
+            <div class="form-field">
+              <label for="edit-agent-role">Role</label>
+              <select id="edit-agent-role" name="role">
+                <option value="coder">Coder</option>
+                <option value="qa">QA Engineer</option>
+                <option value="designer">Designer</option>
+                <option value="reviewer">Reviewer</option>
+                <option value="ops">Ops</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label for="edit-agent-config">Config JSON</label>
+              <textarea id="edit-agent-config" name="config_json" rows="3" placeholder="{}"></textarea>
+            </div>
+            <div class="form-actions">
+              <button type="submit">Save</button>
+              <button type="button" class="modal-cancel" value="cancel">Cancel</button>
+            </div>
+          </form>
+        </dialog>
+
+        <!-- Modal: Delete Agent Confirmation -->
+        <dialog id="modal-delete-agent" class="modal" aria-labelledby="modal-delete-agent-title">
+          <form method="dialog" class="modal-form">
+            <h2 id="modal-delete-agent-title">Delete Agent</h2>
+            <p>Are you sure you want to delete <strong id="delete-agent-name"></strong>? This cannot be undone.</p>
+            <input type="hidden" id="delete-agent-id" />
+            <div class="form-actions">
+              <button type="submit" class="btn-danger">Delete</button>
+              <button type="button" class="modal-cancel" value="cancel">Cancel</button>
+            </div>
+          </form>
+        </dialog>
+
+        <!-- Task Board View -->
+        <section id="view-tasks" class="task-board" hidden aria-label="Task board">
+          <div class="task-board-header">
+            <h1>Task Board</h1>
+            <p class="task-board-hint">Use the "Move to" dropdown on each card to change its status. No dragging required.</p>
+          </div>
+          <div class="task-columns" role="list" aria-label="Task status columns">
+            <div class="task-column" data-status="pending" role="listitem">
+              <h2 class="task-column-title">
+                <span class="task-column-dot task-column-dot--pending"></span>
+                Pending
+                <span class="task-column-count" data-count="pending" aria-live="polite">0</span>
+              </h2>
+              <div class="task-column-cards" role="list" aria-label="Pending tasks" data-cards="pending"></div>
+            </div>
+            <div class="task-column" data-status="in_progress" role="listitem">
+              <h2 class="task-column-title">
+                <span class="task-column-dot task-column-dot--in_progress"></span>
+                In Progress
+                <span class="task-column-count" data-count="in_progress" aria-live="polite">0</span>
+              </h2>
+              <div class="task-column-cards" role="list" aria-label="In Progress tasks" data-cards="in_progress"></div>
+            </div>
+            <div class="task-column" data-status="review" role="listitem">
+              <h2 class="task-column-title">
+                <span class="task-column-dot task-column-dot--review"></span>
+                Review
+                <span class="task-column-count" data-count="review" aria-live="polite">0</span>
+              </h2>
+              <div class="task-column-cards" role="list" aria-label="Review tasks" data-cards="review"></div>
+            </div>
+            <div class="task-column" data-status="done" role="listitem">
+              <h2 class="task-column-title">
+                <span class="task-column-dot task-column-dot--done"></span>
+                Done
+                <span class="task-column-count" data-count="done" aria-live="polite">0</span>
+              </h2>
+              <div class="task-column-cards" role="list" aria-label="Done tasks" data-cards="done"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Modal: Create Agent -->
+        <dialog id="modal-create-agent" class="modal" aria-labelledby="modal-create-agent-title">
+          <form method="dialog" class="modal-form">
+            <h2 id="modal-create-agent-title">Create Agent</h2>
+            <div class="form-field">
+              <label for="agent-name">Agent Name</label>
+              <input type="text" id="agent-name" name="name" required />
+            </div>
+            <div class="form-field">
+              <label for="agent-type">Agent Type</label>
+              <select id="agent-type" name="agent_type">
+                <option value="claude-code">Claude Code</option>
+                <option value="codex">Codex</option>
+                <option value="gemini-cli">Gemini CLI</option>
+                <option value="opencode">OpenCode</option>
+                <option value="custom" selected>Custom</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label for="agent-executable">Executable Path</label>
+              <input type="text" id="agent-executable" name="executable_path" placeholder="/usr/bin/agent" />
+            </div>
+            <div class="form-field">
+              <label for="agent-cwd">Working Directory</label>
+              <input type="text" id="agent-cwd" name="working_directory" placeholder="/home/user/project" />
+            </div>
+            <div class="form-field">
+              <label for="agent-role">Role</label>
+              <select id="agent-role" name="role">
+                <option value="coder">Coder</option>
+                <option value="qa">QA Engineer</option>
+                <option value="designer">Designer</option>
+                <option value="reviewer">Reviewer</option>
+                <option value="ops">Ops</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label for="agent-config">Config JSON</label>
+              <textarea id="agent-config" name="config_json" rows="3" placeholder="{}"></textarea>
+            </div>
+            <div class="form-actions">
+              <button type="submit">Create</button>
+              <button type="button" class="modal-cancel" value="cancel">Cancel</button>
+            </div>
+          </form>
+        </dialog>
+
+        <!-- Modal: Create Task -->
+        <dialog id="modal-create-task" class="modal" aria-labelledby="modal-create-task-title">
+          <form method="dialog" class="modal-form">
+            <h2 id="modal-create-task-title">New Task</h2>
+            <div class="form-field">
+              <label for="task-title">Task Title</label>
+              <input type="text" id="task-title" name="title" required />
+            </div>
+            <div class="form-field">
+              <label for="task-description">Description</label>
+              <textarea id="task-description" name="description" rows="3"></textarea>
+            </div>
+            <div class="form-field">
+              <label for="task-assignee">Assign to Agent</label>
+              <select id="task-assignee" name="assigneeAgentId">
+                <option value="">Unassigned</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label for="task-priority">Priority</label>
+              <select id="task-priority" name="priority">
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="critical">Critical</option>
+                <option value="low">Low</option>
+              </select>
+            </div>
+            <div class="form-actions">
+              <button type="submit">Create Task</button>
+              <button type="button" class="modal-cancel" value="cancel">Cancel</button>
+            </div>
+          </form>
+        </dialog>
+
+        <!-- Settings Panel -->
+        <section id="settings-panel" class="settings-panel" aria-labelledby="settings-title">
+          <h2 id="settings-title">Settings</h2>
+          <form class="settings-form">
+            <div class="form-field">
+              <label for="settings-api-url">API URL</label>
+              <input type="url" id="settings-api-url" name="apiUrl" placeholder="http://localhost:3100" />
+            </div>
+            <div class="form-field">
+              <label for="settings-company-id">Company ID</label>
+              <input type="text" id="settings-company-id" name="companyId" />
+            </div>
+            <div class="form-field">
+              <label for="settings-log-level">Log Level</label>
+              <select id="settings-log-level" name="logLevel">
+                <option value="debug">Debug</option>
+                <option value="info" selected>Info</option>
+                <option value="warn">Warn</option>
+                <option value="error">Error</option>
+              </select>
+            </div>
+            <div class="form-actions">
+              <button type="submit">Save Settings</button>
+            </div>
+          </form>
+        </section>
+      </main>
+    </div>
+    <footer class="app-footer">
+      <span class="footer-status" tabindex="-1">Ready</span>
+      <span class="footer-version"></span>
+    </footer>
+
+    <!-- Keyboard Shortcut Reference Panel -->
+    <div id="shortcut-reference" class="shortcut-reference" role="dialog" aria-label="Keyboard shortcuts" hidden>
+      <div class="shortcut-reference-header">
+        <h2>Keyboard Shortcuts</h2>
+        <button type="button" class="shortcut-reference-close" aria-label="Close shortcuts panel">&times;</button>
+      </div>
+      <div class="shortcut-reference-body">
+        <section>
+          <h3>Global</h3>
+          <dl class="shortcut-list">
+            <dt><kbd>⌘K</kbd></dt><dd>Focus search</dd>
+            <dt><kbd>⌘B</kbd></dt><dd>Focus sidebar</dd>
+            <dt><kbd>⌘N</kbd></dt><dd>New goal</dd>
+            <dt><kbd>⌘T</kbd></dt><dd>New task</dd>
+            <dt><kbd>⌘L</kbd></dt><dd>Focus logs</dd>
+            <dt><kbd>⌘.</kbd></dt><dd>Cancel active task</dd>
+            <dt><kbd>?</kbd></dt><dd>Toggle this panel</dd>
+            <dt><kbd>Esc</kbd></dt><dd>Close modal / panel</dd>
+          </dl>
+        </section>
+        <section>
+          <h3>Navigation</h3>
+          <dl class="shortcut-list">
+            <dt><kbd>Tab</kbd></dt><dd>Next element</dd>
+            <dt><kbd>⇧Tab</kbd></dt><dd>Previous element</dd>
+            <dt><kbd>Enter</kbd> / <kbd>Space</kbd></dt><dd>Activate element</dd>
+            <dt><kbd>↑</kbd> / <kbd>↓</kbd></dt><dd>Navigate lists</dd>
+          </dl>
+        </section>
+      </div>
+    </div>
+  </div>
+  <script src="store.js" defer></script>
+  <script src="renderer.js" defer></script>
+</body>
+</html>
