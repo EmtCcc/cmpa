@@ -380,7 +380,7 @@ html, body {
 
 .task-columns {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 16px;
   min-height: 400px;
 }
@@ -417,6 +417,7 @@ html, body {
 .task-column-dot--in_progress { background: #3b82f6; }
 .task-column-dot--review { background: #a855f7; }
 .task-column-dot--done { background: #22c55e; }
+.task-column-dot--cancelled { background: #64748b; }
 
 .task-column-count {
   margin-left: auto;

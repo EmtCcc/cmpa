@@ -872,12 +872,13 @@
   // Task Board
   // ════════════════════════════════════════════════════
 
-  var STATUSES = ["pending", "in_progress", "review", "done"];
+  var STATUSES = ["pending", "in_progress", "review", "done", "cancelled"];
   var STATUS_LABELS = {
     pending: "Pending",
     in_progress: "In Progress",
     review: "Review",
     done: "Done",
+    cancelled: "Cancelled",
   };
 
   // Sub-states for in_progress tasks — ordered progression
@@ -959,7 +960,8 @@
    */
   function createTaskCard(task) {
     var card = document.createElement("article");
-    card.className = "task-card";
+    var isCancelled = task.status === "cancelled";
+    card.className = "task-card" + (isCancelled ? " task-card--cancelled" : "");
     card.setAttribute("role", "listitem");
     var ariaDesc = task.title + " — " + STATUS_LABELS[task.status];
     if (task.status === "in_progress" && task.sub_state) {
@@ -967,11 +969,49 @@
     }
     card.setAttribute("aria-label", ariaDesc);
 
-    // Title
+    // Title (double-click to inline edit)
     var title = document.createElement("div");
     title.className = "task-card-title";
     title.textContent = task.title;
+    if (!isCancelled) {
+      title.style.cursor = "text";
+      title.title = "Double-click to edit";
+      title.addEventListener("dblclick", function () {
+        var input = document.createElement("input");
+        input.className = "task-card__title-input";
+        input.value = task.title;
+        input.setAttribute("aria-label", "Edit task title");
+        title.replaceWith(input);
+        input.focus();
+        input.select();
+
+        function commitEdit() {
+          var trimmed = input.value.trim();
+          if (trimmed && trimmed !== task.title && window.app && window.app.tasks) {
+            window.app.tasks.update(sessionToken, task.id, { title: trimmed }).then(function () {
+              loadTaskBoard();
+            });
+          } else {
+            input.replaceWith(title);
+          }
+        }
+
+        input.addEventListener("blur", commitEdit);
+        input.addEventListener("keydown", function (e) {
+          if (e.key === "Enter") { e.preventDefault(); commitEdit(); }
+          else if (e.key === "Escape") { input.replaceWith(title); }
+        });
+      });
+    }
     card.appendChild(title);
+
+    // Cancelled badge
+    if (isCancelled) {
+      var cancelBadge = document.createElement("span");
+      cancelBadge.className = "status-badge--cancelled";
+      cancelBadge.textContent = "Cancelled";
+      card.appendChild(cancelBadge);
+    }
 
     // Sub-state stepper + elapsed time (only for in_progress tasks)
     if (task.status === "in_progress") {
@@ -1066,9 +1106,108 @@
     });
 
     actions.appendChild(moveBtn);
+
+    // Cancel button (for non-done, non-cancelled tasks)
+    if (!isCancelled && task.status !== "done") {
+      var cancelBtn = document.createElement("button");
+      cancelBtn.type = "button";
+      cancelBtn.className = "task-cancel-btn";
+      cancelBtn.textContent = "Cancel";
+      cancelBtn.setAttribute("aria-label", "Cancel task: " + task.title);
+      cancelBtn.addEventListener("click", function () {
+        showCancelConfirm(task);
+      });
+      actions.appendChild(cancelBtn);
+    }
+
     card.appendChild(actions);
 
     return card;
+  }
+
+  // ── Cancel confirmation dialog ──
+
+  function showCancelConfirm(task) {
+    var dialog = document.createElement("dialog");
+    dialog.className = "confirm-dialog";
+    dialog.innerHTML =
+      '<div class="confirm-dialog-body">' +
+        '<h2>Cancel Task</h2>' +
+        '<p>Are you sure you want to cancel <strong>' + escapeHtml(task.title) + '</strong>? ' +
+        'If this task is currently running, the agent process will be terminated.</p>' +
+        '<div class="confirm-dialog-actions">' +
+          '<button type="button" class="confirm-dialog-cancel">Keep Task</button>' +
+          '<button type="button" class="confirm-dialog-confirm">Cancel Task</button>' +
+        '</div>' +
+      '</div>';
+
+    document.body.appendChild(dialog);
+    dialog.showModal();
+
+    dialog.querySelector(".confirm-dialog-cancel").addEventListener("click", function () {
+      dialog.close();
+    });
+
+    dialog.querySelector(".confirm-dialog-confirm").addEventListener("click", function () {
+      dialog.close();
+      cancelTask(task);
+    });
+
+    dialog.addEventListener("close", function () {
+      dialog.remove();
+    });
+  }
+
+  async function cancelTask(task) {
+    if (!window.app || !window.app.tasks) return;
+    try {
+      var result = await window.app.tasks.move(sessionToken, task.id, "cancelled");
+      if (result.ok) {
+        announce("Cancelled \"" + task.title + "\"");
+        showUndoToast(task);
+        await loadTaskBoard();
+      } else {
+        announce("Failed to cancel task: " + (result.error || "unknown error"));
+      }
+    } catch (err) {
+      console.error("Failed to cancel task:", err);
+      announce("Error cancelling task. Please try again.");
+    }
+  }
+
+  function showUndoToast(task) {
+    var toast = document.createElement("div");
+    toast.className = "undo-toast";
+    toast.setAttribute("role", "alert");
+    toast.innerHTML =
+      '<span class="undo-toast-message">"' + escapeHtml(task.title) + '" cancelled</span>' +
+      '<button type="button" class="undo-toast-btn">Undo</button>' +
+      '<button type="button" class="undo-toast-dismiss" aria-label="Dismiss">x</button>';
+
+    document.body.appendChild(toast);
+
+    var dismissTimer = setTimeout(function () { toast.remove(); }, 8000);
+
+    toast.querySelector(".undo-toast-btn").addEventListener("click", async function () {
+      clearTimeout(dismissTimer);
+      toast.remove();
+      if (window.app && window.app.tasks) {
+        await window.app.tasks.move(sessionToken, task.id, task.status || "pending");
+        await loadTaskBoard();
+        announce("Undo: \"" + task.title + "\" restored");
+      }
+    });
+
+    toast.querySelector(".undo-toast-dismiss").addEventListener("click", function () {
+      clearTimeout(dismissTimer);
+      toast.remove();
+    });
+  }
+
+  function escapeHtml(str) {
+    var div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
   }
 
   async function loadTaskBoard() {

@@ -105,7 +105,7 @@ function TasksView() {
         </p>
       </div>
       <div className="task-columns" role="list" aria-label="Task status columns">
-        {(["pending", "in_progress", "review", "done"] as const).map(
+        {(["pending", "in_progress", "review", "done", "cancelled"] as const).map(
           (status) => (
             <div key={status} className="task-column" data-status={status}>
               <h2 className="task-column-title">

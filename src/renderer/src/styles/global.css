@@ -718,7 +718,7 @@ html, body {
 
 .task-columns {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: var(--space-md);
   min-height: 400px;
 }
@@ -755,6 +755,7 @@ html, body {
 .task-column-dot--in_progress { background: var(--color-primary); }
 .task-column-dot--review { background: #a855f7; }
 .task-column-dot--done { background: var(--color-success); }
+.task-column-dot--cancelled { background: #64748b; }
 
 .task-column-count {
   margin-left: auto;
@@ -825,6 +826,199 @@ html, body {
 
 .task-card-assignee {
   margin-left: auto;
+}
+
+/* ─── Cancelled task state ─── */
+
+.task-card--cancelled {
+  opacity: 0.6;
+  border-color: rgba(100, 116, 139, 0.3);
+}
+
+.task-card--cancelled .task-card-title {
+  text-decoration: line-through;
+  color: var(--color-text-muted);
+}
+
+.status-badge--cancelled {
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: rgba(100, 116, 139, 0.15);
+  color: #94a3b8;
+}
+
+/* ─── Inline title edit ─── */
+
+.task-card__title-input {
+  width: 100%;
+  padding: 4px 6px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+}
+
+.task-card__title-input:focus {
+  border-color: var(--color-primary-hover);
+}
+
+/* ─── Cancel button ─── */
+
+.task-cancel-btn {
+  padding: 4px 8px;
+  background: transparent;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-md);
+  color: #fca5a5;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.task-cancel-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border-color: #dc2626;
+}
+
+.task-cancel-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ─── Confirmation dialog ─── */
+
+.confirm-dialog {
+  border: none;
+  border-radius: var(--radius-2xl);
+  background: var(--color-surface);
+  color: var(--color-text);
+  padding: 0;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 var(--space-sm) 32px rgba(0, 0, 0, 0.5);
+}
+
+.confirm-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.confirm-dialog-body {
+  padding: var(--space-lg);
+}
+
+.confirm-dialog-body h2 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.confirm-dialog-body p {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+.confirm-dialog-actions {
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: flex-end;
+}
+
+.confirm-dialog-actions button {
+  padding: var(--space-sm) var(--space-md);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.confirm-dialog-cancel {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+.confirm-dialog-confirm {
+  background: #dc2626;
+  color: #fff;
+}
+
+.confirm-dialog-confirm:hover {
+  background: #b91c1c;
+}
+
+/* ─── Undo toast ─── */
+
+.undo-toast {
+  position: fixed;
+  bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1001;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  font-size: 13px;
+  color: var(--color-text);
+  animation: toast-in 0.2s ease-out;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.undo-toast-message {
+  flex: 1;
+}
+
+.undo-toast-btn {
+  padding: 4px 10px;
+  background: var(--color-primary);
+  border: none;
+  border-radius: var(--radius-md);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.undo-toast-btn:hover {
+  background: var(--color-primary-hover);
+}
+
+.undo-toast-dismiss {
+  padding: 4px 6px;
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.undo-toast-dismiss:hover {
+  color: var(--color-text);
 }
 
 /* ─── Task Progress: Sub-state stepper + elapsed time ─── */

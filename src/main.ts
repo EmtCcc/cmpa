@@ -355,6 +355,16 @@ function registerIPC(): { agents: AgentRepository } {
     requireAuth(token, "user");
     const task = tasks.update(taskId, { status: newStatus });
     if (!task) return { ok: false, error: "Task not found" };
+    // Cancel orchestration if task is being cancelled and is currently running
+    if (newStatus === "cancelled" && orchestrator) {
+      const orchTasks = orchestrator.status().tasks;
+      for (const ot of orchTasks) {
+        if (ot.taskId === taskId && (ot.state === "running" || ot.state === "assigned" || ot.state === "pending")) {
+          orchestrator.cancel(ot.id);
+          break;
+        }
+      }
+    }
     return { ok: true, data: task };
   });
 

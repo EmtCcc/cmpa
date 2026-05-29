@@ -119,6 +119,7 @@ export const TASK_STATUS = {
   IN_PROGRESS: "in_progress",
   REVIEW: "review",
   DONE: "done",
+  CANCELLED: "cancelled",
 } as const;
 
 export type TaskStatus = (typeof TASK_STATUS)[keyof typeof TASK_STATUS];
