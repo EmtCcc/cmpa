@@ -1,0 +1,46 @@
+{
+  "name": "agentops-desktop",
+  "version": "0.1.0",
+  "description": "Cross-platform desktop app to orchestrate CLI agents, coding assistants, and automation workflows",
+  "author": "CMPA",
+  "private": true,
+  "type": "module",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "vite build && tsc -p tsconfig.main.json && node scripts/postbuild.mjs",
+    "build:all": "npm run build && electron-builder --config electron-builder.yml",
+    "docs:dev": "vitepress dev docs-site",
+    "docs:build": "vitepress build docs-site",
+    "docs:preview": "vitepress preview docs-site",
+    "renderer:dev": "vite",
+    "renderer:build": "vite build",
+    "dev": "NODE_ENV=development vite & sleep 2 && NODE_ENV=development electron .",
+    "start": "electron .",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:watch": "vitest",
+    "migrate": "tsx src/db/migrate.ts"
+  },
+  "dependencies": {
+    "@xyflow/react": "^12.10.2",
+    "better-sqlite3": "^11.10.0",
+    "posthog-js": "^1.376.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/react": "^18.3.29",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^6.0.2",
+    "electron": "^33.4.11",
+    "electron-builder": "^26.11.1",
+    "jsdom": "^29.1.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vite": "^8.0.14",
+    "vitepress": "^1.6.4",
+    "vitest": "^4.1.7"
+  }
+}
