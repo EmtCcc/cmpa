@@ -3,7 +3,7 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: 'AgentOps Desktop',
   description: 'Cross-platform desktop app to orchestrate CLI agents, coding assistants, and automation workflows',
-  base: '/agentops-desktop/',
+  base: '/cmpa/',
 
   themeConfig: {
     nav: [
@@ -51,7 +51,7 @@ export default defineConfig({
     ],
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/cmpa/agentops-desktop' }
+      { icon: 'github', link: 'https://github.com/EmtCcc/cmpa' }
     ]
   },
 

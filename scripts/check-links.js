@@ -11,7 +11,7 @@ import { fileURLToPath } from 'url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DOCS_DIR = resolve(__dirname, '..', 'docs')
-const BASE_URL = 'https://github.com/cmpa/agentops-desktop'
+const BASE_URL = 'https://github.com/EmtCcc/cmpa'
 
 // ANSI colors
 const RED = '\x1b[31m'

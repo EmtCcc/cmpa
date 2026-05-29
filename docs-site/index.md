@@ -11,7 +11,7 @@ hero:
       link: /vision-template
     - theme: alt
       text: View on GitHub
-      link: https://github.com/cmpa/agentops-desktop
+      link: https://github.com/EmtCcc/cmpa
 
 features:
   - title: Agent Orchestration
