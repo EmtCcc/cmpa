@@ -298,6 +298,73 @@ export interface CronLogEntry {
   error?: string;
 }
 
+// ── Workflow types ───────────────────────────────────────────────────
+
+/** Serialized node position on the workflow canvas. */
+export interface WorkflowNodePosition {
+  x: number;
+  y: number;
+}
+
+/** A single node in a workflow definition (agent step). */
+export interface WorkflowNode {
+  id: string;
+  type: "agent";
+  position: WorkflowNodePosition;
+  data: {
+    agentId: string | null;
+    label: string;
+    description?: string;
+  };
+}
+
+/** A single edge connecting two workflow nodes. */
+export interface WorkflowEdge {
+  id: string;
+  source: string;
+  target: string;
+  label?: string;
+}
+
+/** The full JSON definition of a workflow (stored as TEXT in DB). */
+export interface WorkflowDefinition {
+  nodes: WorkflowNode[];
+  edges: WorkflowEdge[];
+}
+
+/** Database entity for a saved workflow. */
+export interface Workflow {
+  id: string;
+  name: string;
+  description: string | null;
+  definition: string; // JSON-serialized WorkflowDefinition
+  is_template: number; // 0 or 1 (SQLite boolean)
+  built_in: number; // 0 or 1 — true for migration-seeded templates
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateWorkflowInput {
+  name: string;
+  description?: string;
+  definition: WorkflowDefinition;
+  is_template?: boolean;
+}
+
+export interface UpdateWorkflowInput {
+  name?: string;
+  description?: string;
+  definition?: WorkflowDefinition;
+  is_template?: boolean;
+}
+
+/** Result of materializing a workflow into tasks. */
+export interface WorkflowExecutionResult {
+  workflowId: string;
+  taskIds: string[];
+  goalId: string | null;
+}
+
 // ── Analytics types ──────────────────────────────────────────────────
 
 export interface AnalyticsConfig {

@@ -33,6 +33,10 @@ import type {
   UpdateCronScheduleInput,
   CronTriggerEvent,
   CronLogEntry,
+  Workflow,
+  CreateWorkflowInput,
+  UpdateWorkflowInput,
+  WorkflowExecutionResult,
 } from "./types.js";
 
 // --- Result wrapper for mutation operations ---
@@ -118,6 +122,20 @@ export interface IpcRequestMap {
   "cron-schedules:delete": { request: [id: string]; response: IpcResult<boolean> };
   "cron-schedules:trigger": { request: [id: string]; response: IpcResult<CronTriggerEvent> };
   "cron-schedules:logs": { request: [limit?: number]; response: CronLogEntry[] };
+
+  // Workflows
+  "workflows:list": { request: []; response: Workflow[] };
+  "workflows:get": { request: [id: string]; response: Workflow | undefined };
+  "workflows:create": { request: [input: CreateWorkflowInput]; response: IpcResult<Workflow> };
+  "workflows:update": { request: [id: string, input: UpdateWorkflowInput]; response: IpcResult<Workflow> };
+  "workflows:delete": { request: [id: string]; response: IpcResult<boolean> };
+  "workflows:execute": { request: [workflowId: string, goalId?: string]; response: IpcResult<WorkflowExecutionResult> };
+
+  // Workflow Templates
+  "workflow-templates:list": { request: []; response: { builtIn: Workflow[]; userTemplates: Workflow[] } };
+  "workflow-templates:get": { request: [id: string]; response: Workflow | undefined };
+  "workflow-templates:instantiate": { request: [templateId: string, overrides?: { name?: string; description?: string }]; response: IpcResult<Workflow> };
+  "workflow-templates:save": { request: [workflowId: string, overrides?: { name?: string; description?: string }]; response: IpcResult<Workflow> };
 
   // Analytics
   "analytics:config": { request: []; response: AnalyticsConfig | null };
@@ -219,6 +237,20 @@ export interface ElectronAPI {
   triggerCronSchedule(id: string): Promise<IpcResult<CronTriggerEvent>>;
   getCronScheduleLogs(limit?: number): Promise<CronLogEntry[]>;
   onCronScheduleTriggered(callback: (event: CronTriggerEvent) => void): () => void;
+
+  // Workflows
+  listWorkflows(): Promise<Workflow[]>;
+  getWorkflow(id: string): Promise<Workflow | undefined>;
+  createWorkflow(input: CreateWorkflowInput): Promise<IpcResult<Workflow>>;
+  updateWorkflow(id: string, input: UpdateWorkflowInput): Promise<IpcResult<Workflow>>;
+  deleteWorkflow(id: string): Promise<IpcResult<boolean>>;
+  executeWorkflow(workflowId: string, goalId?: string): Promise<IpcResult<WorkflowExecutionResult>>;
+
+  // Workflow Templates
+  listWorkflowTemplates(): Promise<{ builtIn: Workflow[]; userTemplates: Workflow[] }>;
+  getWorkflowTemplate(id: string): Promise<Workflow | undefined>;
+  instantiateWorkflowTemplate(templateId: string, overrides?: { name?: string; description?: string }): Promise<IpcResult<Workflow>>;
+  saveWorkflowAsTemplate(workflowId: string, overrides?: { name?: string; description?: string }): Promise<IpcResult<Workflow>>;
 
   // Analytics
   getAnalyticsConfig(): Promise<AnalyticsConfig | null>;

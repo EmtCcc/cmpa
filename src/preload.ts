@@ -99,6 +99,20 @@ const electronAPI: ElectronAPI = {
     };
   },
 
+  // Workflows
+  listWorkflows: () => ipcRenderer.invoke(IPC_CHANNELS.WORKFLOWS_LIST),
+  getWorkflow: (id) => ipcRenderer.invoke(IPC_CHANNELS.WORKFLOWS_GET, id),
+  createWorkflow: (input) => ipcRenderer.invoke(IPC_CHANNELS.WORKFLOWS_CREATE, input),
+  updateWorkflow: (id, input) => ipcRenderer.invoke(IPC_CHANNELS.WORKFLOWS_UPDATE, id, input),
+  deleteWorkflow: (id) => ipcRenderer.invoke(IPC_CHANNELS.WORKFLOWS_DELETE, id),
+  executeWorkflow: (workflowId, goalId?) => ipcRenderer.invoke(IPC_CHANNELS.WORKFLOWS_EXECUTE, workflowId, goalId),
+
+  // Workflow Templates
+  listWorkflowTemplates: () => ipcRenderer.invoke(IPC_CHANNELS.WORKFLOW_TEMPLATES_LIST),
+  getWorkflowTemplate: (id) => ipcRenderer.invoke(IPC_CHANNELS.WORKFLOW_TEMPLATES_GET, id),
+  instantiateWorkflowTemplate: (templateId, overrides?) => ipcRenderer.invoke(IPC_CHANNELS.WORKFLOW_TEMPLATES_INSTANTIATE, templateId, overrides),
+  saveWorkflowAsTemplate: (workflowId, overrides?) => ipcRenderer.invoke(IPC_CHANNELS.WORKFLOW_TEMPLATES_SAVE, workflowId, overrides),
+
   // Analytics
   getAnalyticsConfig: () => ipcRenderer.invoke(IPC_CHANNELS.ANALYTICS_CONFIG),
   track: (event, properties) => ipcRenderer.invoke(IPC_CHANNELS.ANALYTICS_TRACK, event, properties),

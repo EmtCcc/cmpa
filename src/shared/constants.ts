@@ -90,6 +90,20 @@ export const IPC_CHANNELS = {
   CRON_SCHEDULES_LOGS: "cron-schedules:logs",
   CRON_SCHEDULES_TRIGGERED: "cron-schedules:triggered",
 
+  // Workflows
+  WORKFLOWS_LIST: "workflows:list",
+  WORKFLOWS_GET: "workflows:get",
+  WORKFLOWS_CREATE: "workflows:create",
+  WORKFLOWS_UPDATE: "workflows:update",
+  WORKFLOWS_DELETE: "workflows:delete",
+  WORKFLOWS_EXECUTE: "workflows:execute",
+
+  // Workflow Templates
+  WORKFLOW_TEMPLATES_LIST: "workflow-templates:list",
+  WORKFLOW_TEMPLATES_GET: "workflow-templates:get",
+  WORKFLOW_TEMPLATES_INSTANTIATE: "workflow-templates:instantiate",
+  WORKFLOW_TEMPLATES_SAVE: "workflow-templates:save",
+
   // Analytics
   ANALYTICS_CONFIG: "analytics:config",
   ANALYTICS_TRACK: "analytics:track",

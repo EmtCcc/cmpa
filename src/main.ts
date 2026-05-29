@@ -13,19 +13,38 @@ import { getAnalyticsConfig, startAnalytics, track, identify, optOut, optIn } fr
 import { IPC_CHANNELS } from "./shared/constants.js";
 import type { IpcHandler, IpcChannel } from "./shared/ipc-contracts.js";
 import { createConnection } from "./db/index.js";
-import { AgentRepository, GoalRepository, TaskRepository, TaskLogRepository, CronScheduleRepository, TaskHandoffRepository } from "./db/index.js";
+import { AgentRepository, GoalRepository, TaskRepository, TaskLogRepository, CronScheduleRepository, TaskHandoffRepository, WorkflowRepository } from "./db/index.js";
+import type { WorkflowDefinition } from "./shared/types.js";
 import { validateCreateInput, validateUpdateInput, AgentValidationError } from "./main/agent-validation.js";
 
 // Security: disable hardware acceleration for headless/testing scenarios
 // app.disableHardwareAcceleration();
 
+const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
+
+/** M-5 defense-in-depth: strip HTML tags and cap length on renderer-supplied log messages. */
+const LOG_MSG_MAX_LEN = 4096;
+const ALLOWED_LOG_LEVELS = new Set(["debug", "info", "warn", "error", "fatal"]);
+
+function sanitizeLogMessage(msg: unknown): string {
+  if (typeof msg !== "string") return String(msg ?? "").slice(0, LOG_MSG_MAX_LEN);
+  // Strip HTML/script tags, then cap length
+  const stripped = msg.replace(/<[^>]*>/g, "");
+  return stripped.slice(0, LOG_MSG_MAX_LEN);
+}
+
+function sanitizeLogLevel(level: unknown): string {
+  if (typeof level !== "string" || !ALLOWED_LOG_LEVELS.has(level)) return "info";
+  return level;
+}
+
 const CSP = [
   "default-src 'self'",
-  "script-src 'self'",
+  "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data:",
   "font-src 'self'",
-  "connect-src 'self'",
+  isDev ? "connect-src 'self' ws://localhost:*" : "connect-src 'self'",
   "object-src 'none'",
   "base-uri 'none'",
   "form-action 'self'",
@@ -176,7 +195,13 @@ function createWindow(): BrowserWindow {
     },
   });
 
-  win.loadFile(join(__dirname, "renderer", "index.html"));
+  if (isDev) {
+    win.loadURL("http://localhost:5173");
+    win.webContents.openDevTools();
+  } else {
+    win.loadFile(join(__dirname, "renderer", "index.html"));
+  }
+
   return win;
 }
 
@@ -333,10 +358,17 @@ function registerIPC(): { agents: AgentRepository } {
     return { ok: true, data: task };
   });
 
-  // Task Logs
+  // Task Logs — sanitize renderer-supplied input (M-5 defense-in-depth)
   handle("task-logs:list", (taskId) => taskLogs.listByTask(taskId));
   handle("task-logs:create", (input) => {
-    try { return { ok: true, data: taskLogs.create(input) }; }
+    try {
+      const sanitized = {
+        ...input,
+        message: sanitizeLogMessage(input.message),
+        level: sanitizeLogLevel(input.level),
+      };
+      return { ok: true, data: taskLogs.create(sanitized) };
+    }
     catch (e) { return { ok: false, error: (e as Error).message }; }
   });
 
@@ -440,6 +472,137 @@ function registerIPC(): { agents: AgentRepository } {
 
   handle("cron-schedules:logs", (limit) => {
     return cronScheduler.getLogs(limit);
+  });
+
+  // ── Workflows ──
+  const workflows = new WorkflowRepository(db);
+
+  handle("workflows:list", () => workflows.list());
+  handle("workflows:get", (id) => workflows.getById(id));
+  handle("workflows:create", (input) => {
+    try {
+      const def = JSON.stringify(input.definition);
+      const wf = workflows.create({ ...input, definition: def });
+      return { ok: true, data: wf };
+    } catch (e) {
+      return { ok: false, error: (e as Error).message };
+    }
+  });
+  handle("workflows:update", (id, input) => {
+    try {
+      const dbInput: Record<string, unknown> = { ...input };
+      if (input.definition) dbInput.definition = JSON.stringify(input.definition);
+      const wf = workflows.update(id, dbInput as Parameters<typeof workflows.update>[1]);
+      if (!wf) return { ok: false, error: "Workflow not found" };
+      return { ok: true, data: wf };
+    } catch (e) {
+      return { ok: false, error: (e as Error).message };
+    }
+  });
+  handle("workflows:delete", (id) => {
+    if (!workflows.delete(id)) return { ok: false, error: "Workflow not found" };
+    return { ok: true, data: true };
+  });
+  handle("workflows:execute", (workflowId, goalId?) => {
+    try {
+      const wf = workflows.getById(workflowId);
+      if (!wf) return { ok: false, error: "Workflow not found" };
+
+      const def: WorkflowDefinition = JSON.parse(wf.definition);
+      if (def.nodes.length === 0) return { ok: false, error: "Workflow has no nodes" };
+
+      // Build adjacency: nodeId -> taskIds that depend on it
+      const inDegree = new Map<string, number>();
+      const adjacency = new Map<string, string[]>();
+      for (const node of def.nodes) {
+        inDegree.set(node.id, 0);
+        adjacency.set(node.id, []);
+      }
+      for (const edge of def.edges) {
+        inDegree.set(edge.target, (inDegree.get(edge.target) ?? 0) + 1);
+        adjacency.get(edge.source)!.push(edge.target);
+      }
+
+      // Topological sort to determine task creation order
+      const queue: string[] = [];
+      for (const [id, deg] of inDegree) {
+        if (deg === 0) queue.push(id);
+      }
+
+      const nodeTaskMap = new Map<string, string>();
+      const createdTaskIds: string[] = [];
+      const goal = goalId ?? null;
+
+      while (queue.length > 0) {
+        const nodeId = queue.shift()!;
+        const node = def.nodes.find((n) => n.id === nodeId);
+        if (!node) continue;
+
+        // Find upstream task IDs from edges targeting this node
+        const upstreamEdges = def.edges.filter((e) => e.target === nodeId);
+        const dependsOn = upstreamEdges
+          .map((e) => nodeTaskMap.get(e.source))
+          .filter((id): id is string => !!id);
+
+        const task = tasks.create({
+          goal_id: goal ?? "00000000-0000-0000-0000-000000000000",
+          agent_id: node.data.agentId ?? undefined,
+          title: node.data.label,
+          description: node.data.description ?? `Workflow step: ${node.data.label}`,
+          depends_on: dependsOn,
+          priority: 0,
+        });
+
+        nodeTaskMap.set(nodeId, task.id);
+        createdTaskIds.push(task.id);
+
+        // Decrement in-degree for downstream nodes
+        for (const target of adjacency.get(nodeId) ?? []) {
+          const newDeg = (inDegree.get(target) ?? 1) - 1;
+          inDegree.set(target, newDeg);
+          if (newDeg === 0) queue.push(target);
+        }
+      }
+
+      return {
+        ok: true,
+        data: { workflowId, taskIds: createdTaskIds, goalId: goal },
+      };
+    } catch (e) {
+      return { ok: false, error: (e as Error).message };
+    }
+  });
+
+  // ── Workflow Templates ──
+  handle("workflow-templates:list", () => {
+    const builtIn = workflows.listBuiltIn();
+    const userTemplates = workflows.listUserTemplates();
+    return { builtIn, userTemplates };
+  });
+
+  handle("workflow-templates:get", (id) => {
+    const template = workflows.getById(id);
+    return template?.is_template ? template : undefined;
+  });
+
+  handle("workflow-templates:instantiate", (templateId, overrides?) => {
+    try {
+      const workflow = workflows.instantiate(templateId, overrides);
+      if (!workflow) return { ok: false, error: "Template not found" };
+      return { ok: true, data: workflow };
+    } catch (e) {
+      return { ok: false, error: (e as Error).message };
+    }
+  });
+
+  handle("workflow-templates:save", (workflowId, overrides?) => {
+    try {
+      const template = workflows.saveAsTemplate(workflowId, overrides);
+      if (!template) return { ok: false, error: "Source workflow not found" };
+      return { ok: true, data: template };
+    } catch (e) {
+      return { ok: false, error: (e as Error).message };
+    }
   });
 
   // Initialize cron scheduler
