@@ -4,7 +4,7 @@ import { basename, delimiter } from "node:path";
 import { appendFileSync, mkdirSync, existsSync, accessSync, constants } from "node:fs";
 import { homedir } from "node:os";
 import { EventEmitter } from "node:events";
-import { ALLOWED_EXECUTABLES, ALLOWED_SIGNALS } from "./agent-runtime.js";
+import { ALLOWED_EXECUTABLES, ALLOWED_SIGNALS, sanitizeEnvKeys } from "./agent-runtime.js";
 
 /**
  * ProcessPool — manages N concurrent agent processes.
@@ -128,9 +128,16 @@ export class ProcessPool extends EventEmitter {
 
     const id = randomUUID();
 
+    // SEC-H1: Sanitize renderer-supplied env — strip dangerous keys before merge
+    const sanitizedEnv = env
+      ? sanitizeEnvKeys(env, (stripped) =>
+          logEntry({ event: "env_keys_stripped", slotId: id, orchestrationTaskId, agentId, strippedKeys: stripped }),
+        )
+      : {};
+
     const child = spawn(executable, args, {
       cwd,
-      env: { ...process.env, ...(env ?? {}) },
+      env: { ...process.env, ...sanitizedEnv },
       shell: false,
       stdio: ["pipe", "pipe", "pipe"],
     });

@@ -19,11 +19,6 @@ const ALLOWED_EXECUTABLES = new Set([
   "opencode",
   "cursor",
   "gemini",
-  "node",
-  "python3",
-  "python",
-  "bash",
-  "sh",
 ]);
 
 /**
@@ -444,4 +439,4 @@ export class AgentRuntime {
   }
 }
 
-export { ALLOWED_EXECUTABLES, ALLOWED_SIGNALS };
+export { ALLOWED_EXECUTABLES, ALLOWED_SIGNALS, sanitizeEnvKeys };
